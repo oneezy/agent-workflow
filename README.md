@@ -1,2 +1,3 @@
 # agent-workflow
-A full guide on setting up an agent workflow
+
+README generation is in progress. See the latest GitHub Actions run.
