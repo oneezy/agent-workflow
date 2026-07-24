@@ -3,7 +3,7 @@ name: Build README
 on:
   push:
     branches:
-      - docs/full-ai-workflow-readme
+      - main
     paths:
       - .tmp/readme.zlib.b64
       - .github/workflows/build-readme.yml
