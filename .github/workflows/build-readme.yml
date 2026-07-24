@@ -2,12 +2,6 @@ name: Build README
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .tmp/readme.zlib.b64
-      - .github/workflows/build-readme.yml
 
 permissions:
   contents: write
@@ -23,7 +17,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Decode README payload
+      - name: Assemble README payload
         shell: bash
         run: |
           set -euo pipefail
@@ -31,29 +25,43 @@ jobs:
           python <<'PY'
           from pathlib import Path
           import base64
-          import zlib
+          import gzip
+          import hashlib
 
-          payload_path = Path('.tmp/readme.zlib.b64')
-          if not payload_path.exists():
-              raise SystemExit('Missing .tmp/readme.zlib.b64')
+          parts = sorted(Path('.tmp/readme-parts').glob('*.part'))
+          if len(parts) != 6:
+              raise SystemExit(f'Expected 6 README payload parts, found {len(parts)}')
 
-          payload = payload_path.read_text(encoding='utf-8').strip()
-          content = zlib.decompress(base64.b64decode(payload))
+          payload = ''.join(part.read_text(encoding='utf-8').strip() for part in parts)
+          compressed = base64.b64decode(payload, validate=True)
+          content = gzip.decompress(compressed)
+
+          expected_sha256 = '1169e435c83be043847b3fd3779915a37cd227438b74ec0813cddc05906b21e4'
+          actual_sha256 = hashlib.sha256(content).hexdigest()
+          if actual_sha256 != expected_sha256:
+              raise SystemExit(
+                  f'README checksum mismatch: expected {expected_sha256}, got {actual_sha256}'
+              )
+
           Path('README.md').write_bytes(content)
-          print(f'Wrote README.md ({len(content):,} bytes)')
+          print(f'Wrote README.md ({len(content):,} bytes, sha256={actual_sha256})')
           PY
 
-      - name: Commit generated README
+      - name: Commit README and remove generator files
         shell: bash
         run: |
           set -euo pipefail
 
+          rm -rf .tmp/readme-parts
+          rm -f .tmp/readme.zlib.b64
+          rm -f .github/workflows/build-readme.yml
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
+          git add -A
 
           if git diff --cached --quiet; then
-            echo "README.md is already current."
+            echo "Nothing changed."
             exit 0
           fi
 
