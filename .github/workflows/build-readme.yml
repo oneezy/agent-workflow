@@ -1,0 +1,39 @@
+name: Build README
+
+on:
+  push:
+    branches:
+      - docs/full-ai-workflow-readme
+    paths:
+      - .tmp/readme.zlib.b64
+      - .github/workflows/build-readme.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Decode README payload
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64
+          import zlib
+
+          payload = Path('.tmp/readme.zlib.b64').read_text().strip()
+          content = zlib.decompress(base64.b64decode(payload))
+          Path('README.md').write_bytes(content)
+
+      - name: Commit generated README
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "docs: add complete AI agent workflow guide"
+          git push
