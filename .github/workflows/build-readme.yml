@@ -45,3 +45,5 @@ jobs:
           git add README.md
           git diff --cached --quiet || git commit -m "docs: add complete AI agent workflow guide"
           git push
+
+# Trigger the one-time README render pull request.
