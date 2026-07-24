@@ -2,6 +2,12 @@ name: Build README
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .tmp/readme.zlib.b64
+      - .github/workflows/build-readme.yml
 
 permissions:
   contents: write
