@@ -14,7 +14,7 @@ By the end of this guide, you will be able to:
 6. Run the same workflow through Sandcastle in an isolated sandbox.
 7. Start or supervise approved work remotely from a phone through Codex Remote or Hermes.
 
-This guide deliberately starts with a tiny TypeScript repository. Do not use a client project until the lab has completed at least ten clean issue-to-PR runs.
+This guide deliberately starts with a tiny **framework-free TypeScript 7 repository**. It uses Vite+ for the unified toolchain, Vitest for fast tests, and Playwright for browser tests. Do not add Svelte, SvelteKit, React, Tailwind, Storybook, a database, or client code until the lab has completed at least ten clean issue-to-PR runs.
 
 ---
 
@@ -72,7 +72,7 @@ Keep shared rules in one place. Add provider-specific files only when a provider
 | VS Code | $0 | Yes |
 | Git and GitHub CLI | $0 | Yes |
 | GitHub Free private repository | $0 | Yes |
-| Node.js, pnpm, TypeScript, Vitest | $0 | Yes |
+| Vite+, Node.js, pnpm, TypeScript, Vitest, Playwright | $0 | Yes |
 | Matt Pocock Skills | $0 | Milestone 5 |
 | Sandcastle | $0, open source | Milestone 8 |
 | Docker Desktop | $0 for personal use and qualifying small businesses | Milestone 8 |
@@ -118,317 +118,650 @@ Expected time to reach the first safe automated pull request: **about 5–8 focu
 
 ---
 
-# Milestone 1 — Verify the workstation
+# Milestone 1 — Build the Linux development foundation
 
 ## Purpose
 
-Confirm that your existing Windows, WSL, VS Code, Git, Node, GitHub, Codex, and Copilot setup is healthy before adding orchestration. This avoids debugging five tools at once later.
+Create one clean Linux development lane inside Windows without replacing your Windows desktop applications. All web repositories live in WSL under `~/dev`; Windows remains the desktop shell for VS Code, Photoshop, the browser, Docker Desktop, and the first Hermes test.
 
-## Recommended environment choice
+## Final local architecture
 
-Use this split:
+```text
+Windows
+├── VS Code desktop interface
+├── Photoshop and design-source files
+├── Browser and Discord
+├── Docker Desktop
+└── Hermes temporarily
 
-- **VS Code on Windows** as the interface.
-- **WSL 2 Ubuntu** as the development environment.
-- Store the lab repository inside the WSL filesystem, such as `~/dev/agent-workflow-lab`.
-- Use Docker Desktop's WSL integration later.
-- Keep Hermes on Windows only for the first remote-control test, because it is already configured there.
+WSL Ubuntu
+└── ~/dev
+    ├── All web repositories
+    ├── Git and GitHub CLI
+    ├── Vite+ and its managed Node/pnpm versions
+    ├── Codex CLI
+    ├── Claude Code
+    ├── Copilot CLI
+    ├── Playwright
+    └── Sandcastle later
+```
 
-Avoid storing the Sandcastle lab under `/mnt/c/...`; Linux tooling, file watching, permissions, and Docker volume access are generally cleaner under `~/dev/...`.
+## Version snapshot
 
-## Required versions
+> Versions verified **July 25, 2026**. Use these exact versions while following the lab so every command is reproducible.
 
-- Windows 11 with WSL 2
-- VS Code Stable, current version
-- Git 2.x
-- Node.js **24 LTS**
-- pnpm **10.x**
-- TypeScript **^6.0.3** inside the project
-- GitHub CLI current version
-- Docker Desktop current version, added later
+| Tool or package | Exact version | Where it belongs |
+|---|---:|---|
+| Ubuntu | `24.04 LTS` | WSL and future VPS |
+| Node.js | `24.18.0` LTS | Managed by Vite+ |
+| pnpm | `11.17.0` | Managed by Vite+ |
+| `vite-plus` | `0.2.6` | Project dev dependency |
+| TypeScript | `7.0.2` | Project dev dependency |
+| Bundled Vitest | `4.1.10` | Supplied by Vite+ |
+| `@playwright/test` | `1.61.1` | Project dev dependency |
+| `@playwright/cli` | `0.1.17` | Vite+ global package |
+| `@openai/codex` | `0.145.0` | Vite+ global package |
+| `@anthropic-ai/claude-code` | `2.1.218` | Vite+ global package |
+| `@github/copilot` | `1.0.74` | Vite+ global package |
+| `skills` | `1.5.20` | Run through `vp dlx` in Milestone 5 |
+| `@ai-hero/sandcastle` | `0.6.4` | Added in Milestone 8 |
+| `tsx` | `4.23.1` | Added in Milestone 8 |
 
-## Official links
+Vite+ `0.2.6` is still beta. It is suitable for this isolated lab, but the lab pins it exactly and treats upgrades as deliberate changes rather than automatic ones.
 
-- VS Code: https://code.visualstudio.com/
-- WSL: https://learn.microsoft.com/windows/wsl/install
-- Git: https://git-scm.com/download/win
-- Node.js: https://nodejs.org/en/download
-- pnpm: https://pnpm.io/installation
-- GitHub CLI: https://cli.github.com/
-- Codex: https://developers.openai.com/codex/
-- GitHub Copilot in VS Code: https://code.visualstudio.com/docs/copilot/overview
+## What Vite+ replaces in this lab
 
-## Step 1. Check WSL
+| Use this Vite+ command | Separate tool or command no longer needed |
+|---|---|
+| `vp env` | NVM, fnm, or Volta |
+| `vp install` | Direct `pnpm install` usage |
+| `vp add` / `vp remove` | Direct `pnpm add` / `pnpm remove` usage |
+| `vp dev` | Standalone Vite CLI |
+| `vp check` | Separate Prettier, ESLint/Oxlint, and `tsc --noEmit` commands |
+| `vp test` | Standalone Vitest CLI and dependency |
+| `vp build` | Standalone Vite build command |
+| `vp run` | Direct package-script execution and basic task-runner usage |
+| `vp install -g` | Node global packages tied to one Node installation |
 
-Run from PowerShell or Windows Terminal:
+Vite+ does **not** eliminate pnpm internally. It automatically downloads and runs the pinned pnpm version. The human-facing command remains `vp`.
+
+## Step 1. Verify or install WSL Ubuntu
+
+From PowerShell as Administrator:
 
 ```powershell
 wsl --status
 wsl --list --verbose
 ```
 
-Expected result: Ubuntu is listed with `VERSION 2`.
-
-When WSL is missing:
+Install Ubuntu only when it is missing:
 
 ```powershell
-wsl --install -d Ubuntu
+wsl --install --distribution Ubuntu-24.04
 ```
 
-Restart Windows if requested.
+Restart Windows when requested, open Ubuntu, and create your Linux username and password.
 
-## Step 2. Open Ubuntu and verify the core tools
+## Step 2. Update WSL
+
+Inside Ubuntu:
 
 ```bash
-node --version
-npm --version
-pnpm --version
-git --version
-gh --version
-code --version
+sudo apt update
+sudo apt upgrade --yes
+
+sudo apt install --yes \
+  build-essential \
+  ca-certificates \
+  curl \
+  git \
+  jq \
+  unzip
 ```
 
-Expected minimum:
+## Step 3. Create the single development folder
+
+```bash
+mkdir --parents ~/dev
+cd ~/dev
+```
+
+All web repositories should eventually live here. Do not use `/mnt/c`, `/mnt/d`, or `/mnt/v` as the normal working location for Linux-first projects.
+
+Keep large `.psd`, `.ai`, video, and other design-source files on the Windows Dev Drive. Copy only exported assets into the repository.
+
+## Step 4. Install Vite+ `0.2.6`
+
+```bash
+curl -fsSL https://vite.plus | VP_VERSION=0.2.6 bash
+
+export VP_HOME="$HOME/.vite-plus"
+export PATH="$VP_HOME/bin:$PATH"
+
+vp --version
+```
+
+Run Vite+'s shell setup and restart Ubuntu when instructed:
+
+```bash
+vp env setup
+```
+
+Then verify:
+
+```bash
+vp env doctor
+```
+
+## Step 5. Let Vite+ manage Node `24.18.0`
+
+```bash
+vp env install 24.18.0
+vp env default 24.18.0
+vp env current
+
+node --version
+```
+
+Expected Node result:
 
 ```text
-node: v24.x
-pnpm: 10.x
-git: 2.x
-gh: installed
-code: installed
+v24.18.0
 ```
 
-## Step 3. Install or correct Node and pnpm only when needed
+Do not install Linux NVM or pnpm separately for this lab.
 
-The cleanest option in WSL is a Node version manager. Since you already work with Node, keep your existing version manager if it is functioning.
+## Step 6. Install GitHub CLI
 
-When Node is missing, install Node 24 using your preferred version manager. Then install pnpm 10:
-
-```bash
-npm install --global pnpm@10
-```
-
-Verify again:
+Use GitHub's official Ubuntu package instructions, then verify:
 
 ```bash
-node --version
-pnpm --version
-```
-
-## Step 4. Authenticate GitHub CLI
-
-```bash
+gh --version
 gh auth login
-```
-
-Choose:
-
-1. `GitHub.com`
-2. `HTTPS`
-3. Authenticate through the browser
-4. Allow GitHub CLI to authenticate Git operations when asked
-
-Verify:
-
-```bash
 gh auth status
 ```
 
-Do not store a personal access token inside the repository.
-
-## Step 5. Verify the Codex CLI or IDE extension
-
-The Codex IDE extension is enough for interactive testing. Install the CLI too because Sandcastle and Hermes can use it later:
+## Step 7. Install the Linux AI CLIs through Vite+
 
 ```bash
-npm install --global @openai/codex
-codex --version
+vp install -g @openai/codex@0.145.0
+vp install -g @anthropic-ai/claude-code@2.1.218
+vp install -g @github/copilot@1.0.74
+vp install -g @playwright/cli@0.1.17
+```
+
+Verify that every command resolves inside Linux:
+
+```bash
+command -v node
+command -v vp
+command -v codex
+command -v claude
+command -v copilot
+command -v playwright-cli
+```
+
+None of these paths should begin with `/mnt/c`, `/mnt/d`, or `/mnt/v`.
+
+Authenticate once inside WSL:
+
+```bash
 codex
+claude
+copilot
 ```
 
-Complete the ChatGPT device-login flow. Your ChatGPT Plus plan includes the Codex model family and IDE/CLI access, subject to plan usage limits.
-
-## Step 6. Verify VS Code extensions
-
-Inside VS Code, confirm:
-
-- GitHub Copilot is signed in.
-- GitHub Copilot Chat opens in Agent mode.
-- Codex is signed in with your ChatGPT account.
-- The WSL extension is installed.
-
-Open the WSL workspace with:
+Install the Playwright CLI skills for coding agents:
 
 ```bash
-code .
+playwright-cli install --skills
 ```
+
+Keep your Windows copies of the same CLIs for now. A VS Code window connected to WSL uses the Linux paths; a normal Windows terminal uses the Windows paths.
+
+## Step 8. Configure Git for Linux repositories
+
+```bash
+git config --global init.defaultBranch main
+git config --global core.autocrlf input
+git config --global pull.ff only
+
+git config --global user.name "Justin O'Neill"
+git config --global user.email "YOUR_GITHUB_EMAIL"
+```
+
+## Step 9. Configure Docker Desktop correctly
+
+Install Docker Desktop on Windows once. Enable:
+
+```text
+Settings
+→ General
+→ Use the WSL 2 based engine
+
+Settings
+→ Resources
+→ WSL Integration
+→ Ubuntu enabled
+```
+
+Do **not** install Docker Engine separately inside WSL.
+
+Verify from Ubuntu:
+
+```bash
+docker version
+docker run --rm hello-world
+```
+
+The future VPS will use native Docker Engine. The local WSL environment uses Docker Desktop's WSL integration.
+
+## Step 10. Keep Hermes on Windows temporarily
+
+The existing Windows Hermes installation can start Linux commands through `wsl.exe`, for example:
+
+```powershell
+wsl.exe -d Ubuntu -- bash -lc "cd ~/dev/agent-workflow-lab && vp run validate"
+```
+
+This is sufficient for supervised local experiments. The final always-on Hermes worker should be installed natively on the VPS in a later milestone.
+
+## Step 11. Create a direct VS Code shortcut
+
+Create a Windows desktop shortcut with this target:
+
+```text
+cmd.exe /c code --remote wsl+Ubuntu /home/justin/dev
+```
+
+Also pin this folder in Windows Explorer:
+
+```text
+\\wsl.localhost\Ubuntu\home\justin\dev
+```
+
+Opening the shortcut launches the Windows VS Code interface with its terminal, extensions, Git operations, Node runtime, and CLIs running inside WSL.
+
+## Step 12. Optional reusable bootstrap script
+
+The final lab repository will include:
+
+```text
+scripts/bootstrap-ubuntu.sh
+```
+
+It must be idempotent and support:
+
+```bash
+./scripts/bootstrap-ubuntu.sh --wsl
+./scripts/bootstrap-ubuntu.sh --vps
+```
+
+WSL mode must skip Docker Engine. VPS mode must install native Docker Engine, Docker Compose, Playwright dependencies, and basic SSH/firewall prerequisites.
 
 ## Completion check
 
-Do not continue until all commands succeed:
+Run inside Ubuntu:
 
 ```bash
-node --version
-pnpm --version
-git --version
-gh auth status
-codex --version
+printf 'vp: '; vp --version
+printf 'node: '; node --version
+printf 'git: '; git --version
+printf 'gh: '; gh --version | head --lines=1
+printf 'codex: '; codex --version
+printf 'claude: '; claude --version
+printf 'copilot: '; copilot --version
+printf 'docker: '; docker --version
+printf 'playwright-cli: '; playwright-cli --version
 ```
 
-**Checkpoint:** You can open a WSL folder in VS Code and use both Copilot Chat and Codex.
+**Checkpoint:** all web work can live under `~/dev`, Linux tools resolve to Linux paths, and Docker commands work through Docker Desktop.
 
 ---
 
-# Milestone 2 — Create the isolated test repository
+# Milestone 2 — Create the framework-free TypeScript lab
 
 ## Purpose
 
-Create the smallest useful TypeScript project that supports implementation, tests, Git branches, GitHub issues, and pull requests. The code is intentionally trivial so failures belong to the workflow rather than the application.
+Create the smallest useful project for learning the workflow. The repository contains plain TypeScript, one tiny browser page, fast unit tests, and one Playwright end-to-end test. It has no application framework, CSS framework, component library, database, API, authentication, or deployment system.
 
-## Repository behavior
+## Lab boundaries
 
-The repository will expose one function:
+```text
+Included
+├── TypeScript 7
+├── Vite+
+├── Vitest through Vite+
+├── Playwright
+├── Git and GitHub Issues
+└── Tiny counter example
 
-```ts
-incrementCounter(0); // 1
+Excluded
+├── Svelte or SvelteKit
+├── React, Vue, Astro, or another framework
+├── Tailwind CSS
+├── Storybook
+├── Database or storage
+├── Authentication
+└── Production deployment
 ```
 
-Later issues will add one documentation file, one feature, and one bug fix.
-
-## Step 1. Create the repository locally
-
-Run inside WSL:
+## Step 1. Create the repository folder
 
 ```bash
-mkdir --parents ~/dev/agent-workflow-lab
-cd ~/dev/agent-workflow-lab
-git init --initial-branch=main
-pnpm init
+cd ~/dev
+mkdir agent-workflow-lab
+cd agent-workflow-lab
+
+git init
 ```
 
-## Step 2. Install project dependencies
+## Step 2. Create the exact package manifest
 
 ```bash
-pnpm add --save-dev \
-  typescript@^6.0.3 \
-  vitest@^3.2.0 \
-  @types/node@^24.0.0
-```
-
-Record the exact pnpm version in `package.json`:
-
-```bash
-pnpm pkg set "packageManager=pnpm@$(pnpm --version)"
-pnpm pkg set "type=module"
-pnpm pkg set "private=true" --json
-pnpm pkg set "scripts.test=vitest run"
-pnpm pkg set "scripts.typecheck=tsc --noEmit"
-pnpm pkg set "scripts.check=pnpm typecheck && pnpm test"
-```
-
-## Step 3. Create `.gitignore`
-
-```bash
-cat > .gitignore <<'EOF'
-node_modules/
-coverage/
-dist/
-.env
-.env.*
-!.env.example
-.sandcastle/.env
-*.log
+cat > package.json <<'EOF'
+{
+  "name": "agent-workflow-lab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": "24.18.0"
+  },
+  "scripts": {
+    "test:e2e": "playwright test",
+    "validate": "vp check && vp test && vp run test:e2e && vp build"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "typescript": "7.0.2",
+    "vite-plus": "0.2.6"
+  }
+}
 EOF
+
+printf '24.18.0\n' > .node-version
 ```
 
-## Step 4. Create `tsconfig.json`
+Use exact versions without `^` or `~`. Commit the generated `pnpm-lock.yaml` later.
+
+## Step 3. Create the TypeScript configuration
 
 ```bash
 cat > tsconfig.json <<'EOF'
 {
   "compilerOptions": {
     "target": "ES2024",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "skipLibCheck": true,
-    "types": ["node", "vitest/globals"]
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src", "tests", "vite.config.ts", "playwright.config.ts"]
 }
 EOF
 ```
 
-## Step 5. Create the initial source and test
+## Step 4. Configure Vite+
 
 ```bash
-mkdir --parents src
+cat > vite.config.ts <<'EOF'
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
+  lint: {
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
+  },
+  test: {
+    include: ["src/**/*.test.ts"],
+  },
+});
+EOF
+```
+
+`vp check` is now the single static-analysis command for formatting, linting, and TypeScript type checking.
+
+## Step 5. Create the tiny implementation
+
+```bash
+mkdir --parents src tests
 
 cat > src/counter.ts <<'EOF'
-export function incrementCounter(value: number): number {
+export function increment(value: number): number {
+  if (!Number.isFinite(value) || !Number.isInteger(value)) {
+    throw new TypeError("Counter value must be a finite integer.");
+  }
+
   return value + 1;
+}
+
+export function decrement(value: number): number {
+  if (!Number.isFinite(value) || !Number.isInteger(value)) {
+    throw new TypeError("Counter value must be a finite integer.");
+  }
+
+  return value - 1;
 }
 EOF
 
+cat > src/main.ts <<'EOF'
+import { decrement, increment } from "./counter";
+
+let count = 0;
+
+const app = document.querySelector<HTMLDivElement>("#app");
+
+if (!app) {
+  throw new Error("Missing #app element.");
+}
+
+app.innerHTML = `
+  <main>
+    <h1>AI Agent Workflow Lab</h1>
+    <p data-testid="count">0</p>
+    <button data-testid="decrement" type="button">Decrease</button>
+    <button data-testid="increment" type="button">Increase</button>
+  </main>
+`;
+
+const countElement = app.querySelector<HTMLElement>("[data-testid='count']");
+const incrementButton = app.querySelector<HTMLButtonElement>("[data-testid='increment']");
+const decrementButton = app.querySelector<HTMLButtonElement>("[data-testid='decrement']");
+
+if (!countElement || !incrementButton || !decrementButton) {
+  throw new Error("Counter controls were not created.");
+}
+
+function render(): void {
+  countElement.textContent = String(count);
+}
+
+incrementButton.addEventListener("click", () => {
+  count = increment(count);
+  render();
+});
+
+decrementButton.addEventListener("click", () => {
+  count = decrement(count);
+  render();
+});
+EOF
+
+cat > index.html <<'EOF'
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agent Workflow Lab</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+EOF
+```
+
+## Step 6. Add the unit tests
+
+```bash
 cat > src/counter.test.ts <<'EOF'
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
-import { incrementCounter } from "./counter";
+import { decrement, increment } from "./counter";
 
-describe("incrementCounter", () => {
-  it("increments an integer by one", () => {
-    expect(incrementCounter(0)).toBe(1);
+describe("counter", () => {
+  it("increments an integer", () => {
+    expect(increment(2)).toBe(3);
+  });
+
+  it("decrements an integer", () => {
+    expect(decrement(2)).toBe(1);
+  });
+
+  it("rejects non-integer values", () => {
+    expect(() => increment(1.5)).toThrow(TypeError);
   });
 });
 EOF
 ```
 
-## Step 6. Verify the project
+Do not add standalone `vitest`. Vite+ supplies Vitest and exposes its test API through `vite-plus/test`.
+
+## Step 7. Add Playwright
 
 ```bash
-pnpm check
+cat > playwright.config.ts <<'EOF'
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./tests",
+  fullyParallel: false,
+  retries: process.env.CI ? 2 : 0,
+  reporter: process.env.CI ? "github" : "list",
+  use: {
+    baseURL: "http://127.0.0.1:4173",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+  },
+  webServer: {
+    command: "vp dev --host 127.0.0.1 --port 4173",
+    url: "http://127.0.0.1:4173",
+    reuseExistingServer: !process.env.CI,
+  },
+});
+EOF
+
+cat > tests/counter.spec.ts <<'EOF'
+import { expect, test } from "@playwright/test";
+
+test("increments and decrements the visible counter", async ({ page }) => {
+  await page.goto("/");
+
+  const count = page.getByTestId("count");
+
+  await expect(count).toHaveText("0");
+  await page.getByTestId("increment").click();
+  await expect(count).toHaveText("1");
+  await page.getByTestId("decrement").click();
+  await expect(count).toHaveText("0");
+});
+EOF
 ```
 
-Expected result:
+## Step 8. Install everything
 
-- TypeScript passes.
-- One Vitest test passes.
+```bash
+vp install
+vp exec playwright install --with-deps chromium
+```
 
-## Step 7. Create the initial commit
+## Step 9. Add repository hygiene
+
+```bash
+cat > .gitignore <<'EOF'
+node_modules/
+dist/
+.vite/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+.sandcastle/.env
+EOF
+
+cat > .gitattributes <<'EOF'
+* text=auto eol=lf
+EOF
+```
+
+## Step 10. Run the canonical validation gate
+
+```bash
+vp run validate
+```
+
+This one command must pass before any branch is pushed or pull request is opened:
+
+```text
+vp check
+→ vp test
+→ Playwright Chromium test
+→ vp build
+```
+
+## Step 11. Start the local app
+
+```bash
+vp dev
+```
+
+Open the displayed localhost address in your normal Windows browser.
+
+## Step 12. Create the GitHub repository
+
+Create an empty GitHub repository named:
+
+```text
+agent-workflow-lab
+```
+
+Then connect and push:
 
 ```bash
 git add .
-git commit -m "chore: initialize agent workflow lab"
+git commit -m "chore: initialize framework-free TypeScript lab"
+
+git remote add origin git@github.com:YOUR_GITHUB_USERNAME/agent-workflow-lab.git
+git push --set-upstream origin main
 ```
 
-## Step 8. Create a private GitHub repository
+## Framework adoption note
 
-```bash
-gh repo create agent-workflow-lab \
-  --private \
-  --source=. \
-  --remote=origin \
-  --push
-```
+This lab intentionally tests the workflow without a framework. When adapting it to a real SvelteKit, React, Vue, Astro, or monorepo project:
 
-Verify:
-
-```bash
-git status
-gh repo view --web
-```
-
-Expected Git status:
-
-```text
-nothing to commit, working tree clean
-```
+1. Recheck that framework's current TypeScript 7 and Vite+ compatibility.
+2. Upgrade the existing project to modern Vite and Vitest first when required.
+3. Run `vp migrate` and review every generated change.
+4. Keep framework-specific diagnostics and browser tests that Vite+ does not replace.
+5. Preserve the same human boundary and one canonical validation command.
+6. Migrate one real repository at a time rather than changing every project simultaneously.
 
 ## Completion check
 
-**Checkpoint:** The private GitHub repository exists, `main` is pushed, and `pnpm check` passes.
+**Checkpoint:** `vp run validate` passes, the counter works in the browser, and no framework packages are installed.
 
 ---
 
@@ -457,15 +790,15 @@ cat > AGENTS.md <<'EOF'
 
 ## Project
 
-This repository is an isolated TypeScript lab for testing AI issue-to-PR workflows.
+This repository is an isolated, framework-free TypeScript 7 lab for testing AI issue-to-PR workflows.
 Keep every change intentionally small.
 
 ## Commands
 
-- Install dependencies: `pnpm install`
-- Run all required checks: `pnpm check`
-- Run tests: `pnpm test`
-- Run type checking: `pnpm typecheck`
+- Install dependencies: `vp install`
+- Run all required checks: `vp run validate`
+- Run tests: `vp test`
+- Run type checking: `vp check --no-fmt --no-lint`
 
 ## Coding rules
 
@@ -496,7 +829,7 @@ A task is complete only when:
 
 1. The issue acceptance criteria are satisfied.
 2. Focused tests cover changed behavior.
-3. `pnpm check` passes.
+3. `vp run validate` passes.
 4. The diff contains no unrelated changes.
 5. The branch is pushed.
 6. A pull request links the issue.
@@ -535,11 +868,12 @@ It is not a real product and must remain intentionally small.
 
 ## Product boundaries
 
-- No UI.
+- One tiny vanilla DOM page only.
 - No database.
 - No network requests.
 - No runtime dependencies.
-- No framework.
+- No application framework.
+- No CSS framework.
 - No deployment.
 
 ## Quality target
@@ -622,7 +956,7 @@ Explain what this repository is for, the command that proves a change is valid,
 and which actions require human approval.
 ```
 
-Pass condition: it identifies `pnpm check` and human-only merging.
+Pass condition: it identifies `vp run validate` and human-only merging.
 
 ## Test B — Copilot read-only check
 
@@ -642,7 +976,7 @@ Prompt Codex:
 
 ```text
 Create README.md with a short title, purpose, installation command, and test command.
-Do not commit or push. Run pnpm check after editing.
+Do not commit or push. Run `vp run validate` after editing.
 ```
 
 Inspect:
@@ -650,7 +984,7 @@ Inspect:
 ```bash
 git diff
 git status
-pnpm check
+vp run validate
 ```
 
 When correct:
@@ -676,7 +1010,7 @@ Prompt Copilot Agent:
 
 ```text
 Create docs/WORKFLOW.md containing a five-line summary of the intended
-issue-to-branch-to-PR workflow. Do not commit or push. Run pnpm check.
+issue-to-branch-to-PR workflow. Do not commit or push. Run `vp run validate`.
 ```
 
 Review the Chat Keep/Undo controls, choose **Keep**, inspect the diff, then commit manually:
@@ -692,7 +1026,7 @@ git push
 
 ## Completion check
 
-**Checkpoint:** Both Codex and Copilot can make a bounded change and pass `pnpm check` without violating the merge rule.
+**Checkpoint:** Both Codex and Copilot can make a bounded change and pass `vp run validate` without violating the merge rule.
 
 ---
 
@@ -701,6 +1035,14 @@ git push
 ## Purpose
 
 Add reusable procedures for questioning, specifications, ticket creation, implementation, test-driven development, and review. Skills define repeatable work; they do not replace `AGENTS.md`.
+
+> 📺 **Video walkthrough:** [mattpocock/skills: A Complete AI Coding Workflow](https://www.youtube.com/watch?v=M6mYodf0dJM)
+>
+> 📺 **Long-form workshop:** [Full Walkthrough: Workflow for AI Coding](https://www.youtube.com/watch?v=-QFHIoCo-Ko)
+>
+> 📺 **Real feature session:** [Building a Real Feature With Claude Code](https://www.youtube.com/watch?v=hX7yG1KVYhI)
+>
+> 📺 **Third-party workflow example:** [From Idea to Production Code in Minutes](https://www.youtube.com/watch?v=YIfluAXBr2M)
 
 ## Official repository
 
@@ -711,7 +1053,7 @@ https://github.com/mattpocock/skills
 Run from the repository root:
 
 ```bash
-npx skills@latest add mattpocock/skills
+vp dlx skills@1.5.20 add mattpocock/skills
 ```
 
 When prompted:
@@ -815,6 +1157,8 @@ find .agents .github -name SKILL.md 2>/dev/null
 
 Prove the complete Git workflow manually before automating it. The agent may implement and open a PR, but you control when it starts and whether it merges.
 
+> 📺 **Video walkthrough:** [I’m Using `claude --worktree` for Everything Now](https://www.youtube.com/watch?v=yv8VZpov8bk)
+
 ## Step 1. Create workflow labels once
 
 ```bash
@@ -852,7 +1196,7 @@ gh label create bug \
 gh issue create \
   --title "docs: add the word one" \
   --label "agent-ready,feature" \
-  --body $'Create `docs/one.md`.\n\nAcceptance criteria:\n- The file contains exactly `one` followed by one newline.\n- No other file changes.\n- `pnpm check` passes.\n- Open a PR that closes this issue.'
+  --body $'Create `docs/one.md`.\n\nAcceptance criteria:\n- The file contains exactly `one` followed by one newline.\n- No other file changes.\n- `vp run validate` passes.\n- Open a PR that closes this issue.'
 ```
 
 ### Issue 2 — Feature
@@ -861,7 +1205,7 @@ gh issue create \
 gh issue create \
   --title "feat: add decrementCounter" \
   --label "agent-ready,feature" \
-  --body $'Implement `decrementCounter(value)` in `src/counter.ts`.\n\nAcceptance criteria:\n- Returns the input minus one.\n- Add focused Vitest coverage.\n- Do not add dependencies.\n- `pnpm check` passes.\n- Open a PR that closes this issue.'
+  --body $'Implement `decrementCounter(value)` in `src/counter.ts`.\n\nAcceptance criteria:\n- Returns the input minus one.\n- Add focused Vitest coverage.\n- Do not add dependencies.\n- `vp run validate` passes.\n- Open a PR that closes this issue.'
 ```
 
 ### Issue 3 — Bug fix
@@ -870,7 +1214,7 @@ gh issue create \
 gh issue create \
   --title "fix: reject non-integer counter values" \
   --label "bug" \
-  --body $'Counter functions currently accept non-integer values.\n\nAcceptance criteria:\n- `incrementCounter` and `decrementCounter` throw `TypeError` for non-integer input.\n- The error message is `value must be an integer`.\n- Add regression tests.\n- Do not begin until issue 2 is merged.\n- `pnpm check` passes.'
+  --body $'Counter functions currently accept non-integer values.\n\nAcceptance criteria:\n- `incrementCounter` and `decrementCounter` throw `TypeError` for non-integer input.\n- The error message is `value must be an integer`.\n- Add regression tests.\n- Do not begin until issue 2 is merged.\n- `vp run validate` passes.'
 ```
 
 Leave issue 3 without `agent-ready` until issue 2 has merged.
@@ -887,7 +1231,7 @@ Rules:
 - Inspect the issue with gh.
 - Create the required feature branch.
 - Make only the issue's requested change.
-- Run pnpm check.
+- Run `vp run validate`.
 - Review git diff before committing.
 - Commit using Conventional Commits.
 - Push the branch.
@@ -936,6 +1280,8 @@ gh issue edit <issue-3-number> --add-label agent-ready
 ## Purpose
 
 Separate planning, implementation, and review into focused contexts without yet creating a fully autonomous background service. This is the safest place to learn orchestration.
+
+> 📺 **Video walkthrough:** [Mastering AI With VS Code’s Agent Customizations](https://www.youtube.com/watch?v=os2eqa69gko)
 
 ## Important boundary
 
@@ -986,7 +1332,7 @@ Model:
 Purpose:
 
 ```text
-Implement an approved plan on the issue branch, add tests, and run pnpm check.
+Implement an approved plan on the issue branch, add tests, and run `vp run validate`.
 Do not merge.
 ```
 
@@ -1063,7 +1409,7 @@ Prompt:
 Coordinate approved issue #<issue-3-number>.
 Use the planner, implementer, and reviewer custom agents.
 Allow no more than two implementation-review cycles.
-Stop if requirements are ambiguous or pnpm check cannot pass.
+Stop if requirements are ambiguous or `vp run validate` cannot pass.
 Do not merge. Return the pull-request URL and a concise audit trail.
 ```
 
@@ -1077,21 +1423,22 @@ Do not merge. Return the pull-request URL and a concise audit trail.
 
 ## Purpose
 
-Move execution out of the active working tree and into an isolated sandbox. Sandcastle is the programmable execution engine; GitHub remains the queue and review surface.
+Move execution out of the active working tree and into an isolated Linux container. Sandcastle is the programmable execution engine; GitHub remains the queue and review surface.
 
-## Official links
+> 📺 **Video walkthrough:** [I Open-Sourced My Own AFK Software Factory](https://www.youtube.com/watch?v=E5-QK3CDVQM)
 
-- Sandcastle: https://github.com/mattpocock/sandcastle
-- Docker Desktop for Windows: https://docs.docker.com/desktop/setup/install/windows-install/
+## Exact versions
 
-## Step 1. Install Docker Desktop
+| Package | Version |
+|---|---:|
+| `@ai-hero/sandcastle` | `0.6.4` |
+| `tsx` | `4.23.1` |
+| Docker Desktop | Current stable Windows release |
+| Playwright test image, when required | `mcr.microsoft.com/playwright:v1.61.1-noble` |
 
-Install Docker Desktop and enable:
+## Step 1. Verify Docker Desktop integration
 
-- WSL 2 backend
-- Integration with your Ubuntu distribution
-
-Restart Docker Desktop and WSL when requested.
+Docker Desktop stays installed on Windows with Ubuntu integration enabled. Do not install another Docker Engine inside WSL.
 
 Verify inside WSL:
 
@@ -1100,9 +1447,7 @@ docker version
 docker run --rm hello-world
 ```
 
-Do not continue until both commands succeed.
-
-## Step 2. Create a Sandcastle setup branch
+## Step 2. Create the setup branch
 
 ```bash
 cd ~/dev/agent-workflow-lab
@@ -1111,51 +1456,36 @@ git pull --ff-only
 git switch -c chore/add-sandcastle
 ```
 
-## Step 3. Install Sandcastle
-
-Use pnpm for the project package:
+## Step 3. Install exact Sandcastle dependencies
 
 ```bash
-pnpm add --save-dev @ai-hero/sandcastle@latest tsx@^4.21.0
+vp add -D @ai-hero/sandcastle@0.6.4 tsx@4.23.1
+vp dlx @ai-hero/sandcastle@0.6.4 init
 ```
 
-Run the initializer with pnpm:
-
-```bash
-pnpm dlx @ai-hero/sandcastle@latest init
-```
-
-The official npm equivalent is:
-
-```bash
-npx @ai-hero/sandcastle init
-```
-
-When the initializer presents choices, select:
+Choose the smallest safe options available:
 
 - Agent: Codex
 - Sandbox: Docker
-- Template: simple loop or the smallest available starter
-- Issue tracker: GitHub Issues when offered
+- Template: `simple-loop` or the smallest starter
+- Issue tracker: GitHub Issues
 - Branch strategy: one isolated branch per task
 - Automatic merge: disabled
 
 ## Step 4. Configure authentication safely
 
-Prefer Codex ChatGPT OAuth rather than placing an API key in Git.
-
 1. Confirm the host Codex CLI is authenticated.
-2. Inspect the generated `.sandcastle/.env.example`.
+2. Inspect `.sandcastle/.env.example` generated by the current Sandcastle version.
 3. Copy it locally:
 
 ```bash
 cp .sandcastle/.env.example .sandcastle/.env
 ```
 
-4. Fill only the variables required by the generated Codex template.
-5. Keep `.sandcastle/.env` ignored by Git.
+4. Fill only required values.
+5. Confirm `.sandcastle/.env` is ignored.
 
-Do not manually invent credential mount paths. Use the current generated template because Sandcastle authentication details can change between releases.
+Never commit secrets or invent credential mounts that the generated template does not use.
 
 ## Step 5. Set the first Sandcastle prompt
 
@@ -1168,40 +1498,43 @@ Create `docs/sandcastle.md` containing exactly:
 
 sandcastle works
 
-Then run `pnpm check`.
+Then run `vp run validate`.
 Commit the change on the sandbox branch.
 Do not open or merge a pull request.
-Stop after reporting the commit hash and check results.
+Stop after reporting the commit hash and validation results.
 ```
 
-## Step 6. Set strict limits in the generated runner
+## Step 6. Apply strict initial limits
 
-Use these initial controls in `.sandcastle/main.ts` or the generated equivalent:
+Configure the generated runner with:
 
 - One agent
 - One sandbox
+- One issue
 - One branch
-- Maximum 2 iterations
-- No automatic merge
+- Maximum two implementation iterations
 - No parallel workers
+- No automatic merge
 - No production credentials
-- Completion requires `pnpm check`
+- Completion requires `vp run validate`
 
-Do not hard-code an undocumented model identifier when the generated provider lets Codex use its selected default. When a model must be explicit:
-
-1. Prefer `gpt-5.6-sol` for planning or difficult work.
-2. Prefer `gpt-5.6-terra` for routine implementation.
-3. If the CLI rejects a name, select the exact identifier shown by the current Codex model picker rather than guessing.
+Use the exact model identifier exposed by the current Codex installation instead of guessing a model name.
 
 ## Step 7. Run Sandcastle
 
-Use the command generated by the initializer. It will commonly resemble:
+Use the generated entry file. It will commonly resemble:
 
 ```bash
-pnpm exec tsx .sandcastle/main.ts
+vp exec tsx .sandcastle/main.ts
 ```
 
-Watch the logs. Then inspect:
+Or, when generated as ESM:
+
+```bash
+vp exec tsx .sandcastle/main.mts
+```
+
+Inspect the result:
 
 ```bash
 git status
@@ -1209,9 +1542,17 @@ git branch --all
 git log --oneline --all --decorate --max-count=20
 ```
 
-## Step 8. Commit the Sandcastle configuration
+## Step 8. Browser testing inside a sandbox
 
-Never commit `.sandcastle/.env`.
+A normal Node sandbox does not need a graphical browser. When the worker must run Playwright end-to-end tests, use a sandbox image that contains the matching browsers and Linux dependencies:
+
+```text
+mcr.microsoft.com/playwright:v1.61.1-noble
+```
+
+Keep `@playwright/test@1.61.1` and the Docker image version aligned.
+
+## Step 9. Commit the configuration through a PR
 
 ```bash
 git add package.json pnpm-lock.yaml .sandcastle .gitignore
@@ -1225,7 +1566,7 @@ Review and merge manually.
 
 ## Completion check
 
-**Checkpoint:** Sandcastle ran a Codex agent in Docker, created the requested file on an isolated branch, and did not merge anything automatically.
+**Checkpoint:** Sandcastle ran a coding agent inside Docker, created the requested change on an isolated branch, passed `vp run validate`, and did not merge automatically.
 
 ---
 
@@ -1235,6 +1576,8 @@ Review and merge manually.
 
 Convert Sandcastle from a one-off prompt runner into a controlled worker that handles exactly one approved issue and stops at a pull request.
 
+> 📺 **Video walkthrough:** [How to Write AI Agent Loops in Claude Code and Codex](https://www.youtube.com/watch?v=JoXbk2fm7jM)
+
 ## Required state machine
 
 ```text
@@ -1243,7 +1586,7 @@ agent-ready issue
 → isolated branch
 → inspect AGENTS.md, CONTEXT.md, spec, and issue
 → implement
-→ pnpm check
+→ vp run validate
 → self-review
 → maximum two corrections
 → push
@@ -1275,7 +1618,7 @@ A loop without limits is not automation; it is an uncontrolled bill and code gen
 gh issue create \
   --title "feat: add addCounter" \
   --label "agent-ready,feature" \
-  --body $'Add `addCounter(value, step)`.\n\nAcceptance criteria:\n- Both arguments must be finite integers.\n- Return `value + step`.\n- Invalid input throws `TypeError` with a clear argument-specific message.\n- Add focused tests.\n- Do not add dependencies.\n- `pnpm check` passes.\n- Open a PR and stop without merging.'
+  --body $'Add `addCounter(value, step)`.\n\nAcceptance criteria:\n- Both arguments must be finite integers.\n- Return `value + step`.\n- Invalid input throws `TypeError` with a clear argument-specific message.\n- Add focused tests.\n- Do not add dependencies.\n- `vp run validate` passes.\n- Open a PR and stop without merging.'
 ```
 
 ## Step 2. Make the worker accept one issue number
@@ -1289,7 +1632,7 @@ The runner should require an explicit issue number from one of these sources:
 Example interface:
 
 ```bash
-pnpm sandcastle:issue --issue 4
+vp run sandcastle:issue --issue 4
 ```
 
 Never begin by polling every open issue indefinitely.
@@ -1314,7 +1657,7 @@ The worker succeeds only when all are true:
 
 - Branch exists remotely
 - Commit exists
-- `pnpm check` passed after the final edit
+- `vp run validate` passed after the final edit
 - PR is open against `main`
 - PR body contains `Closes #<issue-number>`
 - No merge occurred
@@ -1457,7 +1800,7 @@ Hermes can act with the permissions of your Windows user. Your daily machine con
 
 - Ubuntu LTS
 - Dedicated non-root `agent` user
-- Git, Node 24, pnpm 10, Docker, Codex, Sandcastle
+- Git, Vite+ 0.2.6, Node 24.18.0, Docker, Codex, Sandcastle
 - Tailscale
 - No public SSH after Tailscale is verified, when practical
 
@@ -1478,6 +1821,8 @@ Use this order:
 ## Purpose
 
 Use Hermes to submit approved jobs and retrieve status, not to provide unrestricted remote shell access to your personal computer.
+
+> 📺 **Video walkthrough:** [Hermes Agent Setup With Discord — Complete Guide](https://www.youtube.com/watch?v=mVHXwlSMQlQ)
 
 ## Official links
 
@@ -1665,7 +2010,7 @@ Deny unnecessary lateral access.
 
 ## Purpose
 
-Make GitHub independently verify the pull request. Agent self-review is useful, but deterministic checks are the acceptance gate.
+Make GitHub independently run the exact same validation command used by humans and agents.
 
 ## Step 1. Create the workflow
 
@@ -1687,22 +2032,32 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Vite+
+        uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: 24
-          cache: pnpm
+          node-version: "24.18.0"
+          cache: true
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: vp install --frozen-lockfile
 
-      - name: Run checks
-        run: pnpm check
+      - name: Install Chromium
+        run: vp exec playwright install --with-deps chromium
+
+      - name: Run canonical validation
+        run: vp run validate
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-results
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
 EOF
 ```
 
@@ -1720,8 +2075,6 @@ Review and merge manually.
 
 ## Step 3. Require green CI operationally
 
-Even when branch protection is unavailable or not configured, establish this rule:
-
 ```text
 No PR merges until GitHub Actions Check is green.
 ```
@@ -1735,7 +2088,7 @@ Later, enable a GitHub ruleset for `main` requiring:
 
 ## Completion check
 
-**Checkpoint:** Every PR runs `pnpm check` independently on GitHub.
+**Checkpoint:** every pull request runs `vp run validate` independently and preserves Playwright failure artifacts.
 
 ---
 
@@ -1806,6 +2159,20 @@ Human idea
 
 ---
 
+
+## Adapting the workflow to a real framework project
+
+Keep this lab as the reference implementation. When moving the workflow into a larger project:
+
+1. Verify the framework's current TypeScript 7 and Vite+ support on the migration date.
+2. Run `vp migrate` in a dedicated branch and inspect every change.
+3. Retain framework-specific checks that Vite+ does not replace.
+4. Add the real project's Playwright journeys and deterministic fixtures.
+5. Preserve `AGENTS.md`, bounded retries, isolated branches, CI, human review, and human merge.
+6. Migrate one repository at a time.
+
+Do not add a framework to this lab merely to rehearse a future migration.
+
 # Security checklist
 
 Before any unattended run, verify every item:
@@ -1822,7 +2189,7 @@ Before any unattended run, verify every item:
 - [ ] Maximum attempts and wall-clock time are enforced.
 - [ ] Every issue must have `agent-ready`.
 - [ ] `needs-human` stops execution.
-- [ ] `pnpm check` must pass locally and in CI.
+- [ ] `vp run validate` must pass locally and in CI.
 - [ ] Logs, branch, and failure reason survive a stopped run.
 - [ ] Human approval is required for merge and deployment.
 - [ ] The worker cannot read the full personal home directory.
@@ -1879,6 +2246,41 @@ Nothing should merge, deploy, purchase, delete, or access production data withou
 
 ---
 
+# Version and tool references
+
+The exact-version snapshot above was checked on **July 25, 2026**. Recheck these sources before deliberately upgrading the lab:
+
+- [Vite+ documentation](https://viteplus.dev/guide/)
+- [Vite+ package](https://www.npmjs.com/package/vite-plus)
+- [Node.js releases](https://nodejs.org/en/download/)
+- [TypeScript package](https://www.npmjs.com/package/typescript)
+- [Playwright Test package](https://www.npmjs.com/package/@playwright/test)
+- [Sandcastle repository](https://github.com/mattpocock/sandcastle)
+- [Codex CLI package](https://www.npmjs.com/package/@openai/codex)
+- [Claude Code package](https://www.npmjs.com/package/@anthropic-ai/claude-code)
+- [GitHub Copilot CLI package](https://www.npmjs.com/package/@github/copilot)
+
+---
+
+# 📺 Video walkthrough index
+
+The matching milestones contain these links inline. This index keeps them in one place for later reference.
+
+| Milestone | Video |
+|---:|---|
+| 5 | 📺 [mattpocock/skills: A Complete AI Coding Workflow](https://www.youtube.com/watch?v=M6mYodf0dJM) |
+| 5 | 📺 [Full Walkthrough: Workflow for AI Coding](https://www.youtube.com/watch?v=-QFHIoCo-Ko) |
+| 5 | 📺 [Building a Real Feature With Claude Code](https://www.youtube.com/watch?v=hX7yG1KVYhI) |
+| 5 | 📺 [From Idea to Production Code in Minutes](https://www.youtube.com/watch?v=YIfluAXBr2M) |
+| 6 | 📺 [I’m Using `claude --worktree` for Everything Now](https://www.youtube.com/watch?v=yv8VZpov8bk) |
+| 7 | 📺 [Mastering AI With VS Code’s Agent Customizations](https://www.youtube.com/watch?v=os2eqa69gko) |
+| 8 | 📺 [I Open-Sourced My Own AFK Software Factory](https://www.youtube.com/watch?v=E5-QK3CDVQM) |
+| 9 | 📺 [How to Write AI Agent Loops in Claude Code and Codex](https://www.youtube.com/watch?v=JoXbk2fm7jM) |
+| 11 | 📺 [Hermes Agent Setup With Discord — Complete Guide](https://www.youtube.com/watch?v=mVHXwlSMQlQ) |
+| Appendix | 📺 [AI-Assisted Coding Full Course](https://www.youtube.com/watch?v=wlpBCazAY9Q) |
+
+---
+
 # 🗺️ AI Agent Workflow Architecture
 
 > Architecture diagrams for the workflow guide above. Milestone numbers match the setup sections.
@@ -1916,8 +2318,8 @@ flowchart TB
 
   subgraph R1["Region 1 — Foundation · M1–M4"]
     direction LR
-    M1["M1 Workstation<br/>VS Code • WSL • Git • Node"]:::node
-    M2["M2 Lab repository<br/>TypeScript • Vitest"]:::node
+    M1["M1 Linux foundation<br/>WSL • Vite+ • Node • Docker"]:::node
+    M2["M2 Framework-free lab<br/>TypeScript 7 • Vitest • Playwright"]:::node
     M3["M3 Project brain<br/>AGENTS.md • CONTEXT.md"]:::node
     M4["M4 AI clients<br/>Copilot • Codex"]:::node
     M1 --> M2 --> M3 --> M4
@@ -2062,7 +2464,7 @@ flowchart TB
   end
 
   subgraph VERIFICATION["M9 + M13 · Verification"]
-    LOCAL_CHECKS["Local checks<br/>pnpm check"]
+    LOCAL_CHECKS["Local checks<br/>vp run validate"]
     SELF_REVIEW["Agent review"]
     PR["GitHub pull request"]
     CI["GitHub Actions CI"]
@@ -2146,7 +2548,7 @@ flowchart TD
   AMBIG -->|No| HUMAN["Apply needs-human<br/>Post blocker comment<br/>Stop"]
   AMBIG -->|Yes| IMPLEMENT["Implementer edits code"]
 
-  IMPLEMENT --> CHECK["Run focused tests + pnpm check"]
+  IMPLEMENT --> CHECK["Run focused tests + vp run validate"]
   CHECK --> PASS{"Checks pass?"}
   PASS -->|No| ATTEMPTS{"Attempts remaining?"}
   ATTEMPTS -->|Yes| IMPLEMENT
