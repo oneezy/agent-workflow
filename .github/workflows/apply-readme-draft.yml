@@ -1,0 +1,59 @@
+name: Apply README Draft
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".readme-payload/**"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Build and verify README
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64
+          import gzip
+          import hashlib
+          import shutil
+
+          payload_dir = Path('.readme-payload')
+          parts = sorted(payload_dir.glob('readme.part*.b64'))
+          if not parts:
+              raise SystemExit('No README payload parts found.')
+
+          encoded = ''.join(part.read_text(encoding='utf-8').strip() for part in parts)
+          content = gzip.decompress(base64.b64decode(encoded, validate=True))
+
+          expected = '3bc774e5989dfd0f0ad6260123298825f854b1bc93d82b96b4b0abf7dc2877cf'
+          actual = hashlib.sha256(content).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'README checksum mismatch: {actual}')
+
+          Path('README.md').write_bytes(content)
+          shutil.rmtree(payload_dir)
+          print(f'Wrote README.md ({len(content):,} bytes)')
+
+      - name: Commit generated README
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md .readme-payload
+          git commit -m "docs: update AI agent workflow lab"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
