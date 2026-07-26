@@ -1,0 +1,1 @@
+Apply the approved framework-free Vite+ and TypeScript 7 AI workflow lab README.
