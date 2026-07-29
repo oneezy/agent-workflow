@@ -1,3 +1,4 @@
+# One-time workflow; removes itself after applying the README changes.
 name: Patch README Tool Choices
 
 on:
@@ -78,7 +79,6 @@ jobs:
                   "Create a new Codex agent session in the repository and give it this prompt:"
               )
 
-              # Renumber existing milestones before inserting the new Milestone 6.
               for old, new in [(12, 13), (11, 12), (10, 11), (9, 10), (8, 9), (7, 8), (6, 7)]:
                   text = text.replace(f"# Milestone {old} —", f"# Milestone {new} —")
 
