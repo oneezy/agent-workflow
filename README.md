@@ -12,11 +12,12 @@ By the end of this lab, you will have a working pipeline that can:
 4. Write the implementation and tests using TDD.
 5. Run Vite+, TypeScript, Vitest, Playwright, and build verification.
 6. Open a pull request back into `dev`.
-7. Deploy every branch and pull request to a Vercel preview.
-8. Promote approved work from `dev` → `staging` → `main`.
-9. Deploy `main` to production through Vercel.
-10. Run the same bounded workflow inside Docker and Sandcastle.
-11. Start, inspect, or stop approved work remotely through Hermes later.
+7. Evaluate Pi as an optional interactive orchestration layer.
+8. Deploy every branch and pull request to a Vercel preview.
+9. Promote approved work from `dev` → `staging` → `main`.
+10. Deploy `main` to production through Vercel.
+11. Run the same bounded workflow inside Docker and Sandcastle.
+12. Start, inspect, or stop approved work remotely through Hermes later.
 
 The lab remains deliberately small and framework-free. It uses plain TypeScript, a tiny browser page, Vite+, Vitest, and Playwright. Do not add Svelte, SvelteKit, React, Tailwind, Storybook, a database, or client code until the workflow itself is proven.
 
@@ -33,7 +34,7 @@ You are responsible for:
 - Approving specifications and issue breakdowns.
 - Approving elevated permissions, secrets, and destructive commands.
 - Reviewing pull requests and deployment evidence.
-- Merging promotion pull requests.
+- Merging feature and promotion pull requests.
 - Stopping a worker when it exceeds its limits.
 
 ## Agent-owned work
@@ -51,7 +52,7 @@ The agents are responsible for:
 - Preparing release pull requests between long-lived branches.
 - Creating Docker, Sandcastle, CI, and VPS bootstrap configuration.
 
-> **Core rule:** The README should give you prompts to hand to agents—not ask you to manually type the implementation the agents are supposed to create.
+> **Core rule:** The README gives you prompts to hand to agents. It should not ask you to manually type the implementation the agents are supposed to create.
 
 ---
 
@@ -116,7 +117,7 @@ must be synchronized so the fix is not lost from future work.
 
 ## Is this too much for every project?
 
-Possibly. For a small solo project, feature branches plus Vercel previews and a single `main` branch may be enough. This lab keeps `dev`, `staging`, and `main` because you specifically want to learn:
+Possibly. A small solo project may need only feature branches, previews, and `main`. This lab keeps `dev`, `staging`, and `main` so you can deliberately practice:
 
 - AI-created feature branches.
 - Integration testing.
@@ -131,27 +132,28 @@ After the lab, you can simplify the branch model without changing the core agent
 
 # 2. Version snapshot
 
-> Versions verified **July 25, 2026**. Pin these exact versions for the lab. Upgrade only through a dedicated dependency-update issue and pull request.
+> Versions verified **July 29, 2026**. Pin these exact versions for the lab. Upgrade only through a dedicated dependency-update issue and pull request.
 
 | Tool or package | Exact version | Purpose |
 |---|---:|---|
 | Ubuntu | `24.04 LTS` | WSL and future VPS |
 | Node.js | `24.18.0` LTS | Runtime managed by Vite+ |
 | pnpm | `11.17.0` | Package manager managed by Vite+ |
-| `vite-plus` | `0.2.5` | Unified local toolchain |
+| `vite-plus` | `0.2.6` | Unified local toolchain |
 | TypeScript | `7.0.2` | Language and compiler |
-| Bundled Vitest | `4.1.10` | Unit and integration tests |
-| `@playwright/test` | `1.61.1` | Browser and deployment tests |
+| Vitest | `4.1.10` | Unit and integration tests supplied through Vite+ |
+| `@playwright/test` | `1.62.0` | Browser and deployment tests |
 | `@playwright/cli` | `0.1.17` | Browser control for coding agents |
-| `@openai/codex` | `0.145.0` | Primary coding agent |
-| `@anthropic-ai/claude-code` | `2.1.218` | Optional second coding agent |
+| `@openai/codex` | `0.145.0` | Initial coordinator and primary coding agent |
+| `@anthropic-ai/claude-code` | `2.1.220` | Optional specialist coding agent |
 | `@github/copilot` | `1.0.74` | VS Code and terminal agent |
+| `@earendil-works/pi-coding-agent` | `0.82.0` | Optional interactive orchestration experiment |
 | `skills` | `1.5.20` | Agent Skills installer |
-| `vercel` | `56.5.0` | Optional deployment CLI |
+| `vercel` | `58.0.0` | Deployment CLI |
 | `@ai-hero/sandcastle` | `0.12.0` | Isolated agent orchestration |
 | `tsx` | `4.23.1` | Run Sandcastle TypeScript scripts |
 
-Vite+ is still pre-1.0. This lab pins it exactly and treats upgrades as deliberate changes.
+Vite+ and Pi are still pre-1.0. This lab pins them exactly and treats upgrades as deliberate changes.
 
 ## What Vite+ handles
 
@@ -169,6 +171,22 @@ Vite+ is still pre-1.0. This lab pins it exactly and treats upgrades as delibera
 
 Vite+ still uses pnpm internally. You use `vp`; Vite+ downloads and runs the pinned pnpm version.
 
+## Tool choice — JavaScript and TypeScript toolchain
+
+Node with Vite+ is selected because it keeps broad Node ecosystem compatibility while giving humans and agents one consistent command surface for environment management, installation, checking, testing, building, and task execution.
+
+1. **Node.js + Vite+ — selected for this lab**
+2. Deno — integrated runtime and tooling, but changes the runtime and ecosystem assumptions
+3. Bun — fast runtime and package manager, but not the compatibility baseline for this workflow
+
+## Tool choice — browser testing
+
+Playwright is selected because it supports Chromium, Firefox, WebKit, traces, screenshots, videos, headless VPS execution, and deployment smoke testing from one system.
+
+1. **Playwright — selected for this lab**
+2. Cypress — mature browser testing with a strong interactive runner
+3. WebdriverIO — flexible WebDriver-based automation for broader browser and device setups
+
 ---
 
 # Milestone 1 — Install and authenticate prerequisites
@@ -179,16 +197,27 @@ Reach the point where a coordinator agent can work inside a WSL repository and u
 
 This is the only intentionally manual milestone.
 
+## Tool choice — code editor
+
+VS Code is selected because it already matches the current workflow, has first-class WSL support, supports GitHub Copilot custom agents and instructions, and can run every CLI in the integrated WSL terminal. The repository remains editor-independent through `AGENTS.md`, Git, scripts, and standard configuration.
+
+1. **VS Code — selected for this lab**
+2. Zed — compelling for ACP agents, Pi integration, terminal threads, and parallel agent sessions
+3. Cursor — AI-first VS Code derivative with built-in agent workflows
+4. Windsurf — AI-first editor with integrated coding-agent features
+
+Do not switch editors during the initial lab. Re-evaluate Zed after the workflow works reliably in VS Code.
+
 ## Windows-side prerequisites
 
 Keep these on Windows:
 
-- VS Code
-- The WSL extension for VS Code
-- Docker Desktop
-- Your browser
-- Photoshop and design-source files
-- Hermes temporarily
+- VS Code.
+- The WSL extension for VS Code.
+- Docker Desktop.
+- Your browser.
+- Photoshop and design-source files.
+- Hermes temporarily.
 
 Enable Docker Desktop integration for Ubuntu:
 
@@ -229,7 +258,7 @@ cd ~/dev
 Install Vite+:
 
 ```bash
-curl -fsSL https://vite.plus | VP_VERSION=0.2.5 bash
+curl -fsSL https://vite.plus | VP_VERSION=0.2.6 bash
 
 export VP_HOME="$HOME/.vite-plus"
 export PATH="$VP_HOME/bin:$PATH"
@@ -244,10 +273,10 @@ Install the Linux agent CLIs:
 
 ```bash
 vp install -g @openai/codex@0.145.0
-vp install -g @anthropic-ai/claude-code@2.1.218
+vp install -g @anthropic-ai/claude-code@2.1.220
 vp install -g @github/copilot@1.0.74
 vp install -g @playwright/cli@0.1.17
-vp install -g vercel@56.5.0
+vp install -g vercel@58.0.0
 ```
 
 Authenticate:
@@ -311,7 +340,19 @@ Proceed only when:
 
 Use one agent prompt to create the complete framework-free project instead of building it manually.
 
-Create a new Codex or Copilot agent session in the repository and give it this prompt:
+## Tool choice — primary coding-agent CLI
+
+Codex CLI is the initial coordinator because it is already included with the current ChatGPT plan, works directly in the WSL repository, supports long-running coding work and computer-use tasks, and is supported by Sandcastle. Claude Code and Copilot remain installed as optional specialist workers. Pi is evaluated only after the first successful agent-created PR.
+
+1. **Codex CLI — selected as the initial coordinator**
+2. Claude Code — strong alternative for planning, architecture, implementation, and review
+3. GitHub Copilot CLI — useful alongside VS Code and GitHub-native workflows
+4. Pi — minimal extensible harness for model switching, custom tools, extensions, and subagents
+5. OpenCode — provider-flexible terminal coding agent and another Sandcastle-supported option
+
+The selection is a default, not a lock-in. Shared behavior belongs in `AGENTS.md`, skills, tests, and scripts so the worker can change later.
+
+Create a new Codex session in the repository and give it this prompt:
 
 ```text
 You are the bootstrap coordinator for this AI workflow lab.
@@ -326,10 +367,10 @@ Build a framework-free TypeScript lab using these exact versions:
 
 - Node.js 24.18.0 managed by Vite+
 - pnpm 11.17.0 managed by Vite+
-- vite-plus 0.2.5
+- vite-plus 0.2.6
 - typescript 7.0.2
-- bundled Vitest 4.1.10
-- @playwright/test 1.61.1
+- Vitest 4.1.10 supplied through Vite+
+- @playwright/test 1.62.0
 
 The application should be deliberately tiny: a browser page with one small,
 testable TypeScript behavior. Do not add a framework, CSS framework, database,
@@ -508,7 +549,7 @@ Ask the coordinator to install Matt Pocock's skills for the agents you use:
 
 ```text
 Install the current project-scoped Agent Skills from mattpocock/skills using
-skills 1.5.20. Target Codex, Claude Code, and GitHub Copilot when supported.
+skills 1.5.20. Target Codex, Claude Code, GitHub Copilot, and Pi when supported.
 
 Inspect every installed skill before using it. Commit the skill files or links
 only if they are portable and appropriate for this repository.
@@ -631,7 +672,93 @@ Then merge into `dev`.
 
 ---
 
-# Milestone 6 — Let the agent configure CI and branch policy
+# Milestone 6 — Evaluate Pi as the interactive orchestration layer
+
+## Goal
+
+Test Pi after the basic coordinator → planner → implementer → reviewer workflow has produced one clean pull request. Pi is an optional interactive control plane; it does not replace GitHub, CI, Docker, or Sandcastle.
+
+## Tool choice — interactive agent harness
+
+Pi is selected for a bounded evaluation because its minimal core can switch models and gain custom tools, extensions, skills, prompt templates, and subagents without forcing the whole workflow into one vendor-specific product.
+
+1. **Pi — selected for evaluation as the interactive orchestrator**
+2. Codex CLI — remains the dependable primary worker and computer-use option
+3. Claude Code — remains an optional planning, architecture, implementation, and review worker
+4. GitHub Copilot CLI — remains useful for GitHub-native and VS Code-adjacent work
+
+Install the pinned Pi version only for this experiment:
+
+```bash
+npm install --global --ignore-scripts @earendil-works/pi-coding-agent@0.82.0
+pi
+```
+
+Use `/login` inside Pi for supported subscription providers.
+
+> **Security:** Pi extensions and packages execute with the user's system permissions. Review source code before installing third-party packages. Start with stock Pi and add extensions one at a time.
+
+## Evaluation prompt
+
+Give Pi this task from the repository root:
+
+```text
+Act as the interactive coordinator for one small approved GitHub issue.
+
+Read AGENTS.md, CONTEXT.md, the approved specification, and the issue before acting.
+Use the existing branch policy and validation command.
+
+Delegate or route work by role when useful:
+- planning and architecture
+- implementation
+- testing
+- independent review
+
+Create one feature branch from dev, complete the issue, run vp run validate,
+commit, push, and open a pull request into dev. Do not merge.
+
+Use no more than three correction cycles. Stop for secrets, destructive actions,
+permission expansion, unresolved architectural decisions, or repeated failures.
+Return the PR URL, models or workers used, tests run, time taken, and remaining risks.
+```
+
+## Pi versus Sandcastle
+
+```text
+Pi
+→ interactive conversation, model routing, tools, extensions, and subagents
+
+Sandcastle
+→ branch/worktree lifecycle, isolated sandbox, bounded iterations, commits, and PR workflow
+
+Combined
+→ Pi can be the agent provider running inside a Sandcastle sandbox
+```
+
+After Pi completes one supervised issue, ask Sandcastle to run one documentation-only issue using Pi as the agent provider. Compare Pi with the original Codex run on:
+
+- Result quality.
+- Time.
+- Cost or subscription usage.
+- Ease of steering.
+- Logs and observability.
+- Isolation and cleanup.
+
+## Decision gate
+
+Keep Pi only when it provides a clear improvement. The acceptable outcomes are:
+
+- Promote Pi to the preferred interactive coordinator.
+- Keep Pi as an optional specialist harness.
+- Remove Pi and continue with Codex, Claude Code, and Copilot.
+
+Do not copy another developer's entire Pi configuration into this repository. Add extensions one at a time and review every source.
+
+> 📺 **Video walkthrough:** [Using Pi to Orchestrate Coding Agents](https://www.youtube.com/watch?v=5Qu2SkSQeBU)
+
+---
+
+# Milestone 7 — Let the agent configure CI and branch policy
 
 ## Goal
 
@@ -675,7 +802,9 @@ An agent saying “tests pass” is not evidence. GitHub CI is the shared source
 
 - Human work.
 - Codex work.
+- Claude Code work.
 - Copilot work.
+- Pi work.
 - Sandcastle work.
 - Promotion pull requests.
 
@@ -685,11 +814,22 @@ Approve the rules, merge the setup PR into `dev`, and apply the GitHub rulesets.
 
 ---
 
-# Milestone 7 — Connect Vercel and deploy through branches
+# Milestone 8 — Connect Vercel and deploy through branches
 
 ## Goal
 
 Deploy previews, staging, and production without giving an agent permission to publish arbitrary code directly.
+
+## Tool choice — deployment platform
+
+Vercel is selected because Git integration, pull-request previews, branch deployments, and production promotion require the least infrastructure work. This lets the lab test deployment gates before taking on VPS administration.
+
+1. **Vercel — selected for previews, staging, and production in this lab**
+2. Coolify on a VPS — strong later option for self-hosting applications, databases, and supporting services
+3. Cloudflare Pages and Workers — strong option for edge-first applications and Cloudflare-native services
+4. Netlify — established Git-based preview and deployment platform
+
+The repository must not depend permanently on Vercel-specific behavior. Keep builds, tests, environment contracts, and Docker support portable so Coolify or another host can replace Vercel later.
 
 Vercel automatically creates preview deployments for non-production branches and production deployments from the configured production branch.
 
@@ -697,7 +837,7 @@ Vercel automatically creates preview deployments for non-production branches and
 
 | Git branch | Vercel behavior |
 |---|---|
-| Feature branches | Unique preview deployment per push/PR |
+| Feature branches | Unique preview deployment per push or PR |
 | `dev` | Branch preview used for integrated development testing |
 | `staging` | Persistent staging preview or custom staging environment |
 | `main` | Production deployment |
@@ -711,7 +851,7 @@ You must complete browser authentication and secret entry:
 3. Add required environment variables without exposing them to agents.
 4. Decide how staging receives a stable URL:
    - **Free plan:** assign a domain or branch URL to the `staging` preview branch.
-   - **Pro/Enterprise:** create a custom `staging` environment with branch tracking.
+   - **Pro or Enterprise:** create a custom `staging` environment with branch tracking.
 5. Keep automatic production deployment tied to merges into `main`.
 
 Official references:
@@ -803,13 +943,24 @@ For production:
 
 ---
 
-# Milestone 8 — Add Docker and Sandcastle through an agent
+# Milestone 9 — Add Docker and Sandcastle through an agent
 
 ## Goal
 
 Move the proven local workflow into an isolated execution environment.
 
 Do not add Sandcastle before the supervised issue-to-PR loop and CI are working.
+
+## Tool choice — sandbox and orchestration
+
+Docker Desktop and Sandcastle are selected together because they solve different parts of the problem: Docker supplies the local Linux sandbox, while Sandcastle manages agents, branches or worktrees, bounded iterations, prompts, commits, and results.
+
+1. **Docker Desktop + Sandcastle — selected for the first isolated workflow**
+2. Podman + Sandcastle — rootless local-container alternative
+3. Vercel Sandbox + Sandcastle — cloud Firecracker microVM option for disposable remote workers
+4. A custom Sandcastle sandbox provider — later option for another cloud or internal platform
+
+Pi, Codex, Claude Code, Copilot, Cursor, and OpenCode are agent-provider choices inside Sandcastle. Docker, Podman, and Vercel are sandbox-provider choices. Do not treat those two categories as interchangeable.
 
 Give the coordinator:
 
@@ -855,11 +1006,21 @@ and no merge permission. Return the branch, commits, validation results,
 container cleanup status, and PR URL.
 ```
 
+## Second isolated test — Pi inside Sandcastle
+
+```text
+Run one documentation-only issue through Sandcastle using Pi as the agent provider.
+
+Use the same branch policy, validation gate, runtime limit, correction limit,
+credential restrictions, and no-merge rule as the original Sandcastle test.
+Return a comparison against the Codex-backed Sandcastle run.
+```
+
 > 📺 **Video walkthrough:** [I Open-Sourced My Own AFK Software Factory](https://www.youtube.com/watch?v=E5-QK3CDVQM)
 
 ---
 
-# Milestone 9 — Add bounded autonomous execution
+# Milestone 10 — Add bounded autonomous execution
 
 ## Goal
 
@@ -912,7 +1073,7 @@ A failed run must return:
 - The failed step.
 - Attempts used.
 - Relevant logs.
-- Current branch/worktree location.
+- Current branch or worktree location.
 - Whether uncommitted changes remain.
 - Recommended human action.
 
@@ -920,13 +1081,22 @@ A failed run must return:
 
 ---
 
-# Milestone 10 — Add Hermes as a remote control plane
+# Milestone 11 — Add Hermes as a remote control plane
 
 ## Goal
 
 Use Hermes to start and supervise bounded jobs, not as an unrestricted replacement for the coding worker.
 
 Keep Hermes on Windows during the local lab. It may call WSL through `wsl.exe`.
+
+## Tool choice — remote control
+
+Hermes with Discord is selected for the remote-control experiment because it can provide a phone-accessible command surface while the actual coding work remains inside the bounded WSL or VPS worker.
+
+1. **Hermes + Discord — selected for the later remote-control milestone**
+2. Codex mobile — useful for directly steering Codex sessions without building a separate command layer
+3. SSH through Tailscale — simple private administrative access without an AI control plane
+4. Zed or another ACP client — useful for organizing agent sessions, but not a replacement for a continuously running worker
 
 Allow only commands such as:
 
@@ -959,7 +1129,7 @@ Later, move Hermes and the autonomous worker to a Linux VPS so they can run cont
 
 ---
 
-# Milestone 11 — Prepare the future VPS
+# Milestone 12 — Prepare the future VPS
 
 ## Goal
 
@@ -1019,7 +1189,7 @@ bootstrap script
 
 ---
 
-# Milestone 12 — Prove and graduate the workflow
+# Milestone 13 — Prove and graduate the workflow
 
 ## Required scorecard
 
@@ -1028,10 +1198,11 @@ Complete at least:
 - 3 documentation or configuration issues.
 - 3 small TypeScript feature issues.
 - 2 bug-fix issues.
-- 2 Playwright/browser issues.
+- 2 Playwright or browser issues.
+- 1 supervised Pi issue.
 - 2 `dev` → `staging` promotions.
 - 1 `staging` → `main` production promotion.
-- 3 Sandcastle runs.
+- 3 Sandcastle runs, including one Pi-backed run.
 - 1 intentionally failed bounded run with a useful failure report.
 
 ## Graduation criteria
@@ -1048,6 +1219,7 @@ The lab is ready for a larger project only when:
 - No secrets appear in commits, logs, PRs, or screenshots.
 - Human review remains the final merge boundary.
 - The same flow works locally and inside Sandcastle.
+- Pi has been deliberately accepted, limited, or rejected based on evidence.
 
 ## Adapting to a real project
 
@@ -1060,6 +1232,7 @@ When applying this workflow to a SvelteKit or other framework project:
 5. Add database migration and rollback gates before production.
 6. Add environment-specific storage and database resources.
 7. Re-evaluate whether all three long-lived branches are still worth the ceremony.
+8. Re-evaluate the editor, agent harness, sandbox, deployment platform, and remote-control choices without changing the portable repository contract.
 
 ---
 
@@ -1075,6 +1248,7 @@ When applying this workflow to a SvelteKit or other framework project:
 - [ ] Sandboxes receive only required credentials.
 - [ ] Logs and screenshots are checked for secrets.
 - [ ] Autonomous workers have runtime and retry limits.
+- [ ] Pi packages and extensions are source-reviewed before installation.
 - [ ] Hermes accepts validated commands rather than arbitrary shell text.
 - [ ] Destructive actions require human approval.
 - [ ] Rollback steps are included in production release PRs.
@@ -1097,6 +1271,7 @@ You provide a request
 → CI and Vercel preview verify
 → agent opens PR into dev
 → you review and merge
+→ Pi is evaluated as an optional interactive coordinator
 → release manager opens dev → staging PR
 → staging deploys and passes smoke tests
 → you merge
@@ -1104,6 +1279,8 @@ You provide a request
 → you approve and merge
 → Vercel deploys production
 → production smoke tests pass
+→ Sandcastle proves the same loop in isolation
+→ Hermes later provides bounded remote control
 ```
 
 ---
@@ -1118,6 +1295,7 @@ You provide a request
 | Third-party workflow reproduction | 📺 [From Idea to Production Code in Minutes](https://www.youtube.com/watch?v=YIfluAXBr2M) |
 | Git worktrees | 📺 [I’m Using `claude --worktree` for Everything Now](https://www.youtube.com/watch?v=yv8VZpov8bk) |
 | VS Code agents | 📺 [Mastering AI With VS Code’s Agent Customizations](https://www.youtube.com/watch?v=os2eqa69gko) |
+| Pi orchestration | 📺 [Using Pi to Orchestrate Coding Agents](https://www.youtube.com/watch?v=5Qu2SkSQeBU) |
 | Sandcastle | 📺 [I Open-Sourced My Own AFK Software Factory](https://www.youtube.com/watch?v=E5-QK3CDVQM) |
 | Bounded loops | 📺 [How to Write AI Agent Loops in Claude Code and Codex](https://www.youtube.com/watch?v=JoXbk2fm7jM) |
 | Hermes and Discord | 📺 [Hermes Agent Setup With Discord — Complete Guide](https://www.youtube.com/watch?v=mVHXwlSMQlQ) |
@@ -1143,7 +1321,9 @@ flowchart TB
   D --> ST["staging"]
   ST --> M["main"]
   M --> PROD["Vercel Production"]
-  C -. later .-> SC["Sandcastle + Docker"]
+  C -. optional interactive layer .-> PI["Pi"]
+  PI -. agent provider .-> SC["Sandcastle + Docker"]
+  C -. isolated execution .-> SC
   C -. remote control .-> HE["Hermes"]
 ```
 
@@ -1196,6 +1376,7 @@ flowchart LR
   COORD --> IMPL["Implementer"]
   COORD --> REVIEWER["Reviewer"]
   COORD --> RELEASE["Release Manager"]
+  COORD -. optional .-> PI["Pi Harness"]
 
   PLANNER --> SPEC["Plan + acceptance criteria"]
   IMPL --> CODE["Tests + implementation"]
@@ -1221,7 +1402,7 @@ flowchart TB
 
   subgraph WSL["WSL Ubuntu"]
     REPOS["~/dev repositories"]
-    CLIS["Vite+ • Codex • Claude • Copilot • gh"]
+    CLIS["Vite+ • Codex • Claude • Copilot • Pi • gh"]
     WORKER["Supervised agent workflow"]
   end
 
@@ -1252,6 +1433,7 @@ flowchart TB
 sequenceDiagram
   actor Justin
   participant Coord as Coordinator
+  participant Pi as Pi (optional)
   participant Plan as Planner
   participant Impl as Implementer
   participant Rev as Reviewer
@@ -1276,6 +1458,8 @@ sequenceDiagram
   CI-->>Justin: Check result
   V-->>Justin: Preview URL
   Justin->>GH: Review and merge into dev
+  Justin->>Pi: Evaluate one supervised issue
+  Pi-->>Justin: Comparison report
   Coord->>GH: Open dev → staging promotion PR
   GH->>V: Deploy staging
   Justin->>GH: Approve and merge into staging
@@ -1290,8 +1474,17 @@ sequenceDiagram
 # Official references
 
 - [Vite+ documentation](https://viteplus.dev/)
+- [Node.js releases](https://nodejs.org/en/about/previous-releases)
 - [TypeScript](https://www.typescriptlang.org/)
+- [Vitest](https://vitest.dev/)
 - [Playwright](https://playwright.dev/)
+- [Codex CLI](https://github.com/openai/codex)
+- [Claude Code](https://github.com/anthropics/claude-code)
+- [GitHub Copilot CLI](https://github.com/github/copilot-cli)
+- [Pi documentation](https://pi.dev/docs/latest)
+- [Pi packages and security notes](https://pi.dev/docs/latest/packages)
+- [Pi in Zed through ACP](https://zed.dev/acp/agent/pi)
+- [Zed agents](https://zed.dev/docs/ai/agents)
 - [GitHub branches](https://docs.github.com/en/pull-requests/reference/branches)
 - [GitHub protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches)
 - [Vercel Git deployments](https://vercel.com/docs/git)
