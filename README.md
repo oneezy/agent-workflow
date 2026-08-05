@@ -132,14 +132,14 @@ After the lab, you can simplify the branch model without changing the core agent
 
 # 2. Version snapshot
 
-> Package versions were verified **July 29, 2026**. The Ubuntu baseline was updated **August 5, 2026**. Pin these exact versions for the lab and upgrade only through a dedicated dependency-update issue and pull request.
+> Package versions were verified **July 29, 2026**. The Ubuntu and global Vite+ baselines were updated **August 5, 2026**. Project runtime and dependency versions remain deliberate; the global `vp` CLI follows the latest published stable release.
 
-| Tool or package | Exact version | Purpose |
-|---|---:|---|
+| Tool or package | Version policy | Purpose |
+|---|---|---|
 | Ubuntu | `26.04 LTS` | WSL and future VPS |
 | Node.js | `24.18.0` LTS | Runtime managed by Vite+ |
 | pnpm | `11.17.0` | Package manager managed by Vite+ |
-| `vite-plus` | `0.2.6` | Unified local toolchain |
+| `vite-plus` | Latest stable (`0.2.8` verified) | Unified local toolchain |
 | TypeScript | `7.0.2` | Language and compiler |
 | Vitest | `4.1.10` | Unit and integration tests supplied through Vite+ |
 | `@playwright/test` | `1.62.0` | Browser and deployment tests |
@@ -153,7 +153,7 @@ After the lab, you can simplify the branch model without changing the core agent
 | `@ai-hero/sandcastle` | `0.12.0` | Isolated agent orchestration |
 | `tsx` | `4.23.1` | Run Sandcastle TypeScript scripts |
 
-Vite+ and Pi are still pre-1.0. This lab pins them exactly and treats upgrades as deliberate changes.
+Vite+ and Pi are still pre-1.0. The global Vite+ CLI tracks the latest stable release, with the tested version recorded above. Pi and project-local dependencies change only through a deliberate tooling or dependency update.
 
 ## What Vite+ handles
 
@@ -169,7 +169,7 @@ Vite+ and Pi are still pre-1.0. This lab pins them exactly and treats upgrades a
 | `vp run` | Package scripts and task execution |
 | `vp install -g` | Global Node packages managed across Node versions |
 
-Vite+ still uses pnpm internally. You use `vp`; Vite+ downloads and runs the pinned pnpm version.
+Vite+ detects and downloads the workspace package manager automatically. When a project declares none, Vite+ falls back to pnpm. Use the normalized `vp` commands instead of requiring a separately installed global `pnpm` binary.
 
 Inside WSL, Vite+ is the only Node.js and package-manager authority for this lab. Do not install NVM, fnm, Volta, a standalone Node.js runtime, or a separately managed pnpm installation in Ubuntu. The Windows host may retain its own Node.js tools for unrelated Windows-native work, but they are not prerequisites for this workflow.
 
@@ -269,10 +269,10 @@ mkdir --parents ~/dev
 cd ~/dev
 ```
 
-Install the pinned Vite+ CLI. Vite+ manages Node.js and the project package manager, so do not install NVM or a separate Node.js runtime inside WSL:
+Install the latest stable Vite+ CLI. Vite+ manages Node.js and the project package manager, so do not install NVM or a separate Node.js runtime inside WSL:
 
 ```bash
-curl -fsSL https://vite.plus | VP_VERSION=0.2.6 bash
+curl -fsSL https://vite.plus | bash
 ```
 
 Close and reopen the WSL shell, then configure and verify Vite+:
@@ -320,7 +320,8 @@ command -v gh
 command -v vp
 command -v node
 command -v npm
-command -v pnpm
+command -v corepack
+vp pm --version
 command -v codex
 command -v claude
 command -v copilot
