@@ -144,7 +144,7 @@ After the lab, you can simplify the branch model without changing the core agent
 | Vitest | `4.1.10` | Unit and integration tests supplied through Vite+ |
 | `@playwright/test` | `1.62.0` | Browser and deployment tests |
 | `@playwright/cli` | `0.1.17` | Browser control for coding agents |
-| `@openai/codex` | `0.145.0` | Initial coordinator and primary coding agent |
+| `@openai/codex` | `0.145.0` | WSL CLI execution layer and Sandcastle worker |
 | `@anthropic-ai/claude-code` | `2.1.220` | Optional specialist coding agent |
 | `@github/copilot` | `1.0.74` | VS Code and terminal agent |
 | `@earendil-works/pi-coding-agent` | `0.82.0` | Optional interactive orchestration experiment |
@@ -227,11 +227,11 @@ The Codex desktop app remains a Windows application. For this Linux-first lab, c
 ```text
 Agent environment      → Windows Subsystem for Linux
 Integrated terminal    → WSL
-Default distribution   → Ubuntu-26.04
-Repository location    → /home/justin/dev/agent-workflow
+WSL default distro     → Ubuntu-26.04
+Repository location    → ~/dev/agent-workflow
 ```
 
-The agent-environment setting controls where Codex executes its commands. The terminal-shell setting controls only the visible integrated terminal. Keep both on WSL for this repository. Windows applications remain available through normal WSL interoperability when needed.
+The agent-environment setting controls where Codex executes its commands. The terminal-shell setting controls only the visible integrated terminal. Keep both on WSL for this repository. The default distro is configured by Windows WSL, not by Codex. Windows executables can still be invoked through WSL interoperability when needed; use a separate Windows-native Codex session for work that fundamentally depends on Windows system tooling.
 
 Enable Docker Desktop integration for Ubuntu 26.04:
 
@@ -273,9 +273,11 @@ Install the pinned Vite+ CLI. Vite+ manages Node.js and the project package mana
 
 ```bash
 curl -fsSL https://vite.plus | VP_VERSION=0.2.6 bash
+```
 
-exec "$SHELL" -l
+Close and reopen the WSL shell, then configure and verify Vite+:
 
+```bash
 vp --version
 vp env setup
 vp env on
@@ -702,7 +704,7 @@ Test Pi after the basic coordinator → planner → implementer → reviewer wor
 Pi is selected for a bounded evaluation because its minimal core can switch models and gain custom tools, extensions, skills, prompt templates, and subagents without forcing the whole workflow into one vendor-specific product.
 
 1. **Pi — selected for evaluation as the interactive orchestrator**
-2. Codex CLI — remains the dependable primary worker and computer-use option
+2. Codex Desktop and Codex CLI — remain the supervised control surface and portable primary worker
 3. Claude Code — remains an optional planning, architecture, implementation, and review worker
 4. GitHub Copilot CLI — remains useful for GitHub-native and VS Code-adjacent work
 
@@ -754,7 +756,7 @@ Combined
 → Pi can be the agent provider running inside a Sandcastle sandbox
 ```
 
-After Pi completes one supervised issue, ask Sandcastle to run one documentation-only issue using Pi as the agent provider. Compare Pi with the original Codex run on:
+After Pi completes one supervised issue, ask Sandcastle to run one documentation-only issue using Pi as the agent provider. Compare Pi with the original Codex Desktop and CLI run on:
 
 - Result quality.
 - Time.
