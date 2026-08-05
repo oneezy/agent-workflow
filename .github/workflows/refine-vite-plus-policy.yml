@@ -1,0 +1,86 @@
+name: Refine Vite Plus policy
+
+on:
+  push:
+    branches:
+      - docs/ubuntu-26-wsl-prerequisites
+
+permissions:
+  contents: write
+
+jobs:
+  refine-readme:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out update branch
+        uses: actions/checkout@v4
+        with:
+          ref: docs/ubuntu-26-wsl-prerequisites
+          fetch-depth: 0
+
+      - name: Update Vite Plus version and package-manager policy
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("README.md")
+          text = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  "> Package versions were verified **July 29, 2026**. The Ubuntu baseline was updated **August 5, 2026**. Pin these exact versions for the lab and upgrade only through a dedicated dependency-update issue and pull request.",
+                  "> Package versions were verified **July 29, 2026**. The Ubuntu and global Vite+ baselines were updated **August 5, 2026**. Project runtime and dependency versions remain deliberate; the global `vp` CLI follows the latest published stable release.",
+              ),
+              (
+                  "| Tool or package | Exact version | Purpose |\n|---|---:|---|",
+                  "| Tool or package | Version policy | Purpose |\n|---|---|---|",
+              ),
+              (
+                  "| `vite-plus` | `0.2.6` | Unified local toolchain |",
+                  "| `vite-plus` | Latest stable (`0.2.8` verified) | Unified local toolchain |",
+              ),
+              (
+                  "Vite+ and Pi are still pre-1.0. This lab pins them exactly and treats upgrades as deliberate changes.",
+                  "Vite+ and Pi are still pre-1.0. The global Vite+ CLI tracks the latest stable release, with the tested version recorded above. Pi and project-local dependencies change only through a deliberate tooling or dependency update.",
+              ),
+              (
+                  "Vite+ still uses pnpm internally. You use `vp`; Vite+ downloads and runs the pinned pnpm version.",
+                  "Vite+ detects and downloads the workspace package manager automatically. When a project declares none, Vite+ falls back to pnpm. Use the normalized `vp` commands instead of requiring a separately installed global `pnpm` binary.",
+              ),
+              (
+                  "Install the pinned Vite+ CLI. Vite+ manages Node.js and the project package manager, so do not install NVM or a separate Node.js runtime inside WSL:",
+                  "Install the latest stable Vite+ CLI. Vite+ manages Node.js and the project package manager, so do not install NVM or a separate Node.js runtime inside WSL:",
+              ),
+              (
+                  "curl -fsSL https://vite.plus | VP_VERSION=0.2.6 bash",
+                  "curl -fsSL https://vite.plus | bash",
+              ),
+              (
+                  "command -v vp\ncommand -v node\ncommand -v npm\ncommand -v pnpm\ncommand -v codex",
+                  "command -v vp\ncommand -v node\ncommand -v npm\ncommand -v corepack\nvp pm --version\ncommand -v codex",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match, found {count}: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/refine-vite-plus-policy.yml
+
+      - name: Commit refinements
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md .github/workflows/refine-vite-plus-policy.yml
+          git commit -m "use latest stable Vite Plus"
+          git push origin HEAD:docs/ubuntu-26-wsl-prerequisites
