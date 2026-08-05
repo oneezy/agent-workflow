@@ -132,11 +132,11 @@ After the lab, you can simplify the branch model without changing the core agent
 
 # 2. Version snapshot
 
-> Versions verified **July 29, 2026**. Pin these exact versions for the lab. Upgrade only through a dedicated dependency-update issue and pull request.
+> Package versions were verified **July 29, 2026**. The Ubuntu baseline was updated **August 5, 2026**. Pin these exact versions for the lab and upgrade only through a dedicated dependency-update issue and pull request.
 
 | Tool or package | Exact version | Purpose |
 |---|---:|---|
-| Ubuntu | `24.04 LTS` | WSL and future VPS |
+| Ubuntu | `26.04 LTS` | WSL and future VPS |
 | Node.js | `24.18.0` LTS | Runtime managed by Vite+ |
 | pnpm | `11.17.0` | Package manager managed by Vite+ |
 | `vite-plus` | `0.2.6` | Unified local toolchain |
@@ -170,6 +170,8 @@ Vite+ and Pi are still pre-1.0. This lab pins them exactly and treats upgrades a
 | `vp install -g` | Global Node packages managed across Node versions |
 
 Vite+ still uses pnpm internally. You use `vp`; Vite+ downloads and runs the pinned pnpm version.
+
+Inside WSL, Vite+ is the only Node.js and package-manager authority for this lab. Do not install NVM, fnm, Volta, a standalone Node.js runtime, or a separately managed pnpm installation in Ubuntu. The Windows host may retain its own Node.js tools for unrelated Windows-native work, but they are not prerequisites for this workflow.
 
 ## Tool choice — JavaScript and TypeScript toolchain
 
@@ -214,26 +216,38 @@ Keep these on Windows:
 
 - VS Code.
 - The WSL extension for VS Code.
+- The ChatGPT/Codex desktop app.
 - Docker Desktop.
 - Your browser.
 - Photoshop and design-source files.
 - Hermes temporarily.
 
-Enable Docker Desktop integration for Ubuntu:
+The Codex desktop app remains a Windows application. For this Linux-first lab, configure it as:
+
+```text
+Agent environment      → Windows Subsystem for Linux
+Integrated terminal    → WSL
+Default distribution   → Ubuntu-26.04
+Repository location    → /home/justin/dev/agent-workflow
+```
+
+The agent-environment setting controls where Codex executes its commands. The terminal-shell setting controls only the visible integrated terminal. Keep both on WSL for this repository. Windows applications remain available through normal WSL interoperability when needed.
+
+Enable Docker Desktop integration for Ubuntu 26.04:
 
 ```text
 Docker Desktop
 → Settings
 → Resources
 → WSL Integration
-→ Enable Ubuntu
+→ Enable Ubuntu-26.04
 ```
 
 Do not install a second Docker Engine inside WSL.
 
 ## WSL-side prerequisites
 
-Inside Ubuntu:
+Inside Ubuntu 26.04:
 
 ```bash
 sudo apt update
@@ -255,15 +269,16 @@ mkdir --parents ~/dev
 cd ~/dev
 ```
 
-Install Vite+:
+Install the pinned Vite+ CLI. Vite+ manages Node.js and the project package manager, so do not install NVM or a separate Node.js runtime inside WSL:
 
 ```bash
 curl -fsSL https://vite.plus | VP_VERSION=0.2.6 bash
 
-export VP_HOME="$HOME/.vite-plus"
-export PATH="$VP_HOME/bin:$PATH"
+exec "$SHELL" -l
 
+vp --version
 vp env setup
+vp env on
 vp env install 24.18.0
 vp env default 24.18.0
 vp env doctor
@@ -300,15 +315,18 @@ Verify Linux paths:
 ```bash
 command -v git
 command -v gh
-command -v node
 command -v vp
+command -v node
+command -v npm
+command -v pnpm
 command -v codex
 command -v claude
 command -v copilot
+command -v playwright-cli
 command -v vercel
 ```
 
-None should resolve under `/mnt/c`, `/mnt/d`, or `/mnt/v`.
+The Linux development commands above must not resolve under `/mnt/c`, `/mnt/d`, or `/mnt/v`. The Windows `code` launcher is the intentional exception: running `code .` from WSL should open Windows VS Code connected to the Linux repository through the VS Code Server.
 
 ## Create the repository workspace
 
@@ -340,19 +358,20 @@ Proceed only when:
 
 Use one agent prompt to create the complete framework-free project instead of building it manually.
 
-## Tool choice — primary coding-agent CLI
+## Tool choice — supervised coordinator and portable execution layer
 
-Codex CLI is the initial coordinator because it is already included with the current ChatGPT plan, works directly in the WSL repository, supports long-running coding work and computer-use tasks, and is supported by Sandcastle. Claude Code and Copilot remain installed as optional specialist workers. Pi is evaluated only after the first successful agent-created PR.
+Codex Desktop is the initial supervised coordinator for this lab. The app remains installed on Windows, while its agent environment and integrated terminal run inside Ubuntu 26.04 WSL. Codex CLI is installed separately inside WSL and remains the portable execution interface for terminal sessions, automation, Docker, Sandcastle, and the future VPS.
 
-1. **Codex CLI — selected as the initial coordinator**
-2. Claude Code — strong alternative for planning, architecture, implementation, and review
-3. GitHub Copilot CLI — useful alongside VS Code and GitHub-native workflows
-4. Pi — minimal extensible harness for model switching, custom tools, extensions, and subagents
-5. OpenCode — provider-flexible terminal coding agent and another Sandcastle-supported option
+1. **Codex Desktop in WSL mode — selected as the supervised interactive coordinator**
+2. **Codex CLI inside WSL — selected as the portable and headless execution layer**
+3. Claude Code — optional specialist for planning, architecture, implementation, and review
+4. GitHub Copilot CLI — optional GitHub-native and VS Code-adjacent worker
+5. Pi — optional competing interactive harness evaluated after the first clean Codex PR
+6. OpenCode — provider-flexible terminal agent and another Sandcastle-supported option
 
-The selection is a default, not a lock-in. Shared behavior belongs in `AGENTS.md`, skills, tests, and scripts so the worker can change later.
+Codex Desktop, Codex CLI, Pi, and Sandcastle are not interchangeable. Desktop provides the human-facing control surface; the CLI provides portable execution; Pi is an optional alternate harness; Sandcastle adds bounded branch, worktree, sandbox, retry, and cleanup orchestration. Shared behavior belongs in `AGENTS.md`, skills, tests, scripts, and repository policy so the worker can change later.
 
-Create a new Codex session in the repository and give it this prompt:
+Open the repository in Codex Desktop with the WSL agent environment, or start Codex CLI from the WSL repository root, and give it this prompt:
 
 ```text
 You are the bootstrap coordinator for this AI workflow lab.
@@ -1120,7 +1139,7 @@ Hermes must not:
 The Windows Hermes process can invoke WSL:
 
 ```powershell
-wsl.exe -d Ubuntu -- bash -lc "cd ~/dev/agent-workflow && <bounded-command>"
+wsl.exe -d Ubuntu-26.04 -- bash -lc "cd ~/dev/agent-workflow && <bounded-command>"
 ```
 
 Later, move Hermes and the autonomous worker to a Linux VPS so they can run continuously.
